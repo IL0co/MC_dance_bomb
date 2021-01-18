@@ -1,0 +1,45 @@
+"Phrases"
+{
+	"Menu. VIP. Feature Name"
+	{
+		"ru"	"Танцующая бомба"
+		"en"	"Dancing bomb"
+    }
+	"Menu. VIP. Disable"
+	{
+		"ru"	"Выключить"
+		"en"	"Turn off"
+	}
+	"Menu. VIP. Selected Tag"
+	{
+		"ru"	" [Выбрано]"
+		"en"	" [Selected]"
+	}
+	"Menu. VIP. No Items"
+	{
+		"ru"	"Нету доступных на выбор предметов..."
+		"en"	"There are no items available to choose from ..."
+	}
+	"Menu. VIP. Preview Mode"
+	{
+		"ru"	"Превью режим"
+		"en"	"Preview mode"
+	}
+	"Menu. Enable Tag"
+	{
+		"ru"	" [Включено]"
+		"en"	" [Disabled]"
+	}
+	"Menu. Disable Tag"
+	{
+		"ru"	" [Выключено]"
+		"en"	" [Enabled]"
+	}
+
+	"Hint. Draw Preview Time"
+	{
+		"#format"   "{1:1.1f}"
+		"ru"		"<pre><span face='monospace'>Превью <font color='#0dff00'><span class='fontSize-l'>{1} </span></font></span></pre>"
+		"en"		"<pre><span face='monospace'>Preview <font color='#0dff00'><span class='fontSize-l'>{1} </span></font></span></pre>"
+	}
+}
