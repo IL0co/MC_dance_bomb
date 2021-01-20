@@ -3,7 +3,7 @@
 #include <clientprefs>
 #include <sdktools>
 #include <sdkhooks>
-#include <csgo_colors>
+// #include <csgo_colors>
 
 #undef REQUIRE_PLUGIN
 #tryinclude <shop>
@@ -17,19 +17,16 @@ public Plugin myinfo =
 	name		= "[Multi-Core] Dance Bomb",
 	author	  	= "iLoco",
 	description = "",
-	version	 	= "1.0.1",
+	version	 	= "1.0.2",
 	url			= "iLoco#7631"
 };
 
 /* TODO:
 - проверку, не застряла ли модель в стене
-- добавить скелет, по кототрому будет двигатся модель
- - заменять на скин игрока
 - добавить проверку высоты пола, что бы спавнить на нём, а не в нём
-- поддержка вип
 - поддерка персонального
-- добавить поддержку all в випгруппы
-- проверить звук на дальность
+- поддержка контроллера
+- поддержка LR
 
 ADDED:
 	v1.0.1
@@ -39,10 +36,24 @@ ADDED:
 - добавлен спавн shop-конфига с примером заполнения
 - Shop. Добавлена поддержка 'Hide'
 - Shop/VIP. Добавлено превью
+
+	v1.0.2
+- добавлена функция повтора анимации при её завершении
+- добавлена поддержка "скелетной анимации" (Dance bones), аналогия Fortnite Emotes
+- фикс размера буфера, из-за этого обрезались названия анимаций и они не работали
+- добавлена поддержка {player} в "Model", она заменится на скин игрока
+- фикс "Solid Type", он работал наоборот
+- фикс проверки "Preview time" в вип меню и регистрации шопа
+- VIP. Добавлена поддержка "all" в group.ini для доступа ко всем моделям
+<написать что бы кидали предложения>
+
+	v1.0.3
+- натив Shop_SetHide добавлен в список опциональных
 */
 
 #define VIP_FEATURE "DanceBomb"
 #define TARGET_NAME "DanceBomb"
+#define TARGET_NAME_DANCE "DanceBombEmote"
 
 enum 
 {
@@ -64,8 +75,9 @@ ArrayList ar_Priorities;
 
 float g_PreviewTime;
 
-int g_entModel, g_entSprite, g_entParticle;
+int g_entModel, g_entSprite, g_entParticle, g_entEmote;
 char g_entSound[256];
+ArrayList ar_entEmotes;
 
 Cookie g_VipCookie;
 
@@ -75,6 +87,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	__pl_vip_core_SetNTVOptional();
 
 	MarkNativeAsOptional("VIP_UnregisterMe");
+	MarkNativeAsOptional("Shop_SetHide");
 	
 	return APLRes_Success;
 }
@@ -150,7 +163,7 @@ public void OnPluginStart()
 			
 			count = ExplodeString(buffer, ";", exp, sizeof(exp), sizeof(exp[])) - 1;
 
-			ar = new ArrayList(count + 1);
+			ar = new ArrayList(32);
 	
 			for(int c; c <= count; c++)  if(exp[c][0])
 				ar.PushString(exp[c]); 
@@ -192,6 +205,10 @@ public void OnMapStart()
 	do
 	{
 		kv.GetString("Model", buff, sizeof(buff));
+		if(buff[0] && (FileExists(buff, true) || FileExists(buff, false)))
+			PrecacheModel(buff, true);
+
+		kv.GetString("Dance bones", buff, sizeof(buff));
 		if(buff[0] && (FileExists(buff, true) || FileExists(buff, false)))
 			PrecacheModel(buff, true);
 
@@ -249,7 +266,7 @@ public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
 	int client = GetClientOfUserId(userid);
 
 	if(client <= 0 || c4 <= 0 || !iKv[client])
-		return Plugin_Continue;
+		return;
 
 	KeyValues kv_sub;
 	char buff[256];
@@ -269,7 +286,7 @@ public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
 	}
 
 	if(!kv_sub)
-		return Plugin_Continue;
+		return;
 	
 	DataPack data = new DataPack();
 	data.WriteCell(userid);
@@ -277,7 +294,7 @@ public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
 	data.WriteCell(kv_sub);
 
 	CreateTimer(kv.GetFloat("delay"), Timer_Delay_CreateBombDance, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE);
-	return Plugin_Continue;
+	return;
 }
 
 public Action Timer_Delay_CreateBombDance(Handle timer, DataPack data)
@@ -306,7 +323,7 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 	if(client && IsClientInGame(client))
 	{
 		char buff[256], sound[256];
-		int model, sprite, particle;
+		int model, sprite, particle, emote;
 		float origin[3];
 
 		if(isPreview)
@@ -326,22 +343,49 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 			GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin, 0);
 			kv_sub.GetVector("Pos offset", vec_offset);
 			AddVectors(origin, vec_offset, origin);
+
+			ar_entEmotes = null;
 		}
 
 		kv_sub.GetString("Model", buff, sizeof(buff));
-		if(buff[0] && (model = CreateEntityByName("prop_dynamic")))
+		if(buff[0] && (model = CreateEntityByName("prop_dynamic_override")))
 		{ 
+			if(strcmp(buff, "{player}", false) == 0)
+				GetClientModel(client, buff, sizeof(buff));
+
 			SetEntityModel(model, buff);
 
 			DispatchKeyValue(model, "targetname", TARGET_NAME); 
 			SetEntProp(model, Prop_Send, "m_CollisionGroup", 0);
 			SetEntProp(model, Prop_Send, "m_nSolidType", 0);
-			DispatchKeyValue(model, "solid", (kv_sub.GetNum("Solid Type", 1) == 1 ? "1" : "0"));
+			DispatchKeyValue(model, "solid", (kv_sub.GetNum("Solid Type", 1) == 1 ? "0" : "1"));
 				
 			SetEntityMoveType(model, MOVETYPE_VPHYSICS);
 			
 			TeleportEntity(model, origin, NULL_VECTOR, NULL_VECTOR);
 			DispatchSpawn(model);
+
+			kv_sub.GetString("Dance bones", buff, sizeof(buff));
+			if(buff[0] && (emote = CreateEntityByName("prop_dynamic_override")))
+			{
+				DispatchKeyValue(emote, "model", buff);
+
+				DispatchKeyValue(emote, "targetname", TARGET_NAME_DANCE);
+				DispatchKeyValue(emote, "solid", "0");
+
+				ActivateEntity(emote);
+				DispatchSpawn(emote);
+
+				TeleportEntity(emote, origin, NULL_VECTOR, NULL_VECTOR);
+				
+				SetEntProp(model, Prop_Send, "m_fEffects", (1 << 0)|(1 << 4)|(1 << 6)|(1 << 9)|128);
+				
+				SetVariantString("!activator");
+				AcceptEntityInput(model, "SetParent", emote, model, 0);
+
+				SetVariantString("primary");
+				AcceptEntityInput(model, "SetParentAttachment", model, model, 0);
+			}
 			
 			ArrayList ar = view_as<ArrayList>(kv_sub.GetNum("Animations"));
 			if(ar)
@@ -349,17 +393,23 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 				ar.GetString(GetRandomInt(0, ar.Length - 1), buff, sizeof(buff));
 
 				SetVariantString(buff);
-				AcceptEntityInput(model, "SetAnimation");
+				AcceptEntityInput(emote ? emote : model, "SetAnimation", -1, -1, 0);
 
 				float change_time = kv.GetFloat("Time change");
 				if(change_time > 0.0)
 				{   
 					DataPack data_sec = new DataPack();
-					data_sec.WriteCell(g_entModel);
+					data_sec.WriteCell(emote ? emote : model);
 					data_sec.WriteCell(ar);
 
 					CreateTimer(change_time, Timer_ChangeAnim, data_sec, TIMER_REPEAT|TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE);
 				}
+				else if(emote && change_time == -1.0 && !isPreview)
+				{
+					ar_entEmotes = ar;
+					HookSingleEntityOutput(emote, "OnAnimationDone", EndOutput_OnAnimationDone, true);
+				}
+
 			}
 		}
 
@@ -381,7 +431,7 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 		if(sound[0])
 		{
 			if(isPreview)
-				EmitSoundToClient(client, sound, client, SNDCHAN_STATIC, kv_sub.GetNum("Level", 255), _, kv_sub.GetFloat("Volume", 1.0), kv_sub.GetNum("Pitch", 100), _, origin);
+				EmitSoundToClient(client, sound, client, SNDCHAN_STATIC, kv_sub.GetNum("Level", 255), _, kv_sub.GetFloat("Volume", 1.0), kv_sub.GetNum("Pitch", 100), _, origin, origin);
 			else
 				EmitSoundToAll(sound, 0, SNDCHAN_STATIC, kv_sub.GetNum("Level", 255), _, kv_sub.GetFloat("Volume", 1.0), kv_sub.GetNum("Pitch", 100), _, origin);
 		}
@@ -421,6 +471,7 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 			data.WriteCell(GetClientUserId(client));
 			data.WriteCell(EntIndexToEntRef(model));
 			data.WriteCell(EntIndexToEntRef(sprite));
+			data.WriteCell(EntIndexToEntRef(emote));
 			data.WriteCell(EntIndexToEntRef(particle));
 			data.WriteString(sound);
 
@@ -432,11 +483,24 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 			Format(g_entSound, sizeof(g_entSound), sound);
 			g_entModel = EntIndexToEntRef(model);
 			g_entSprite = EntIndexToEntRef(sprite);
+			g_entEmote = EntIndexToEntRef(emote);
 			g_entParticle = EntIndexToEntRef(particle);
 		}
 	}
 
 	delete kv_sub;
+}
+
+public void EndOutput_OnAnimationDone(const char[] output, int caller, int activator, float delay) 
+{
+	if(ar_entEmotes && caller && IsValidEdict(caller))
+	{
+		char buff[64];
+		ar_entEmotes.GetString(GetRandomInt(0, ar_entEmotes.Length - 1), buff, sizeof(buff));
+
+		SetVariantString(buff);
+		AcceptEntityInput(caller, "SetAnimation", -1, -1, 0);
+	}
 }
 
 public Action Timer_Preview(Handle timer, DataPack data)
@@ -452,6 +516,7 @@ public Action Timer_Preview(Handle timer, DataPack data)
 	int model = data.ReadCell();
 	int sprite = data.ReadCell();
 	int particle = data.ReadCell();
+	int emote = data.ReadCell();
 
 	char sound[256];
 	data.ReadString(sound, sizeof(sound));
@@ -459,6 +524,7 @@ public Action Timer_Preview(Handle timer, DataPack data)
 	Stock_KillEntity(model);
 	Stock_KillEntity(sprite);
 	Stock_KillEntity(particle);
+	Stock_KillEntity(emote);
 	Stock_StopSound(client, sound);
 
 	return Plugin_Stop;
@@ -531,11 +597,13 @@ public Action Event_BombExpodeOrDefuse(Event event, char[] name, bool dontBroadc
 	Stock_KillEntity(g_entModel);
 	Stock_KillEntity(g_entSprite);
 	Stock_KillEntity(g_entParticle);
+	Stock_KillEntity(g_entEmote);
 	Stock_StopSound(0, g_entSound);
 
 	g_entModel = 0;
 	g_entSprite = 0;
 	g_entParticle = 0;
+	g_entEmote = 0;
 	g_entSound[0] = '\0';
 }
 
@@ -629,7 +697,7 @@ public void Shop_Started()
 					
 					Shop_SetInfo(item_name, description, kv_shop.GetNum("Price"), kv_shop.GetNum("Sell Price"), Item_Togglable, kv_shop.GetNum("Duration"), kv_shop.GetNum("Gold Price"), kv_shop.GetNum("Gold Sell Price"));
 					Shop_SetLuckChance(kv_shop.GetNum("Luck Chance"));
-					Shop_SetCallbacks(_, CallBack_Shop_OnItemToggled, .preview = (g_PreviewTime > 0.0 ? CallBack_Shop_OnItemPreview : INVALID_FUNCTION));
+					Shop_SetCallbacks(_, CallBack_Shop_OnItemToggled, .preview = (kv_sub.GetFloat("Preview time", g_PreviewTime) > 0.0 ? CallBack_Shop_OnItemPreview : INVALID_FUNCTION));
 					Shop_SetHide(view_as<bool>(kv_shop.GetNum("Hide", 0)));
 					Shop_EndItem();
 				}
@@ -741,31 +809,64 @@ public Menu Menu_VIP_SelectItem(int client)
 	Format(translate, sizeof(translate), "%s\n ", translate);
 	menu.AddItem("", translate, (!iSelectThis || g_vip_iPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
-	char exp[64][64];
-	int count = ExplodeString(myFeature, ";", exp, sizeof(exp), sizeof(exp[]));
-
+	bool isAllMode = (strcmp(myFeature, "all", false) == 0);
+	
 	KeyValues kv_sub = new KeyValues("Sub");
 	kv.Rewind();
 	KvCopySubkeys(kv, kv_sub);
 
-	for(int c; c < count; c++)
+	if(isAllMode)
 	{
-		if(!kv_sub.JumpToKey(exp[c]))
-			continue;
+		kv_sub.Rewind();
+		if(kv_sub.GotoFirstSubKey())
+		{
+			char buff[64];
 
-		if(g_vip_iPreviewMode[client] && kv.GetFloat("Preview time", g_PreviewTime) <= 0.0)
-			continue;
+			do
+			{
+				kv_sub.GetSectionName(buff, sizeof(buff));
 		
-		iSelectThis = (strcmp(exp[c], selected_id) == 0);
+				if(g_vip_iPreviewMode[client] && kv_sub.GetFloat("Preview time", g_PreviewTime) <= 0.0)
+					continue;
+				
+				iSelectThis = (strcmp(buff, selected_id) == 0);
 
-		kv_sub.GetString("Name", translate, sizeof(translate), exp[c]);
-		
-		Format(translate, sizeof(translate), "%s", translate);
-		if(iSelectThis)
-			Format(translate, sizeof(translate), "%s%T", translate, "Menu. VIP. Selected Tag", client);
-		menu.AddItem(exp[c], translate, (iSelectThis && !g_vip_iPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+				kv_sub.GetString("Name", translate, sizeof(translate), buff);
+				
+				Format(translate, sizeof(translate), "%s", translate);
+				if(iSelectThis)
+					Format(translate, sizeof(translate), "%s%T", translate, "Menu. VIP. Selected Tag", client);
+				menu.AddItem(buff, translate, (iSelectThis && !g_vip_iPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
-		kv_sub.GoBack();
+				kv_sub.GoBack();
+			}
+			while(kv_sub.GotoNextKey());
+		}
+	}
+	else
+	{
+		char exp[64][64];
+		int count = ExplodeString(myFeature, ";", exp, sizeof(exp), sizeof(exp[]));
+
+		for(int c; c < count; c++)
+		{
+			if(!kv_sub.JumpToKey(exp[c]))
+				continue;
+
+			if(g_vip_iPreviewMode[client] && kv_sub.GetFloat("Preview time", g_PreviewTime) <= 0.0)
+				continue;
+			
+			iSelectThis = (strcmp(exp[c], selected_id) == 0);
+
+			kv_sub.GetString("Name", translate, sizeof(translate), exp[c]);
+			
+			Format(translate, sizeof(translate), "%s", translate);
+			if(iSelectThis)
+				Format(translate, sizeof(translate), "%s%T", translate, "Menu. VIP. Selected Tag", client);
+			menu.AddItem(exp[c], translate, (iSelectThis && !g_vip_iPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+
+			kv_sub.GoBack();
+		}
 	}
 
 	if(!menu.ItemCount)
