@@ -1,6 +1,6 @@
 "Phrases"
 {
-	"Menu. VIP. Feature Name"
+	"Menu. Plugin Id"
 	{
 		"ru"	"Танцующая бомба"
 		"en"	"Dancing bomb"
