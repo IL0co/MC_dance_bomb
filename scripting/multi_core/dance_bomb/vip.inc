@@ -1,17 +1,17 @@
 #include <sourcemod>
 
-bool g_vip_iPreviewMode[MAXPLAYERS+1];
-Cookie g_VipCookie;
+bool g_vip_bPreviewMode[MAXPLAYERS+1];
+Cookie g_vip_hCookie;
 
 public void VIP_OnVIPClientLoaded(int client)
 {
-	if(g_VipCookie)
+	if(g_vip_hCookie)
 	{
 		char buff[64];
-		g_VipCookie.Get(client, buff, sizeof(buff));
+		g_vip_hCookie.Get(client, buff, sizeof(buff));
 
 		if(buff[0])
-			iKv[client].SetString("Vip", buff);
+			g_mapPlayerData[client].SetString("Vip", buff, true);
 	}
 }
 
@@ -21,7 +21,7 @@ public void VIP_OnVIPLoaded()
 		return;
 
 	VIP_RegisterFeature(PLUGIN_ID, STRING, SELECTABLE, CallBack_VIP_OnItemSelected, CallBack_VIP_OnItemDisplayed, .bCookie = true);
-	g_VipCookie = Cookie.Find(PLUGIN_ID);
+	g_vip_hCookie = Cookie.Find(PLUGIN_ID);
 }
 
 public bool CallBack_VIP_OnItemDisplayed(int client, const char[] feature, char[] display, int maxlength)
@@ -32,7 +32,7 @@ public bool CallBack_VIP_OnItemDisplayed(int client, const char[] feature, char[
 
 public bool CallBack_VIP_OnItemSelected(int client, const char[] feature)
 {
-	g_vip_iPreviewMode[client] = false;
+	g_vip_bPreviewMode[client] = false;
 	Menu_VIP_SelectItem(client).Display(client, 0);
 	return false;
 }
@@ -53,13 +53,13 @@ public Menu Menu_VIP_SelectItem(int client)
 	Format(translate, sizeof(translate), "%T\n ", "Menu. Plugin Id", client);
 	menu.SetTitle(translate);
 
-	g_VipCookie.Get(client, selected_id, sizeof(selected_id));
+	g_vip_hCookie.Get(client, selected_id, sizeof(selected_id));
 	iSelectThis = view_as<bool>(selected_id[0]);
 
 	if(g_PreviewTime > 0.0)
 	{
 		Format(translate, sizeof(translate), "%T", "Menu. VIP. Preview Mode", client);
-		Format(translate, sizeof(translate), "%s%T", translate, (g_vip_iPreviewMode[client] ? "Menu. Enable Tag" : "Menu. Disable Tag"), client);
+		Format(translate, sizeof(translate), "%s%T", translate, (g_vip_bPreviewMode[client] ? "Menu. Enable Tag" : "Menu. Disable Tag"), client);
 		menu.AddItem("preview", translate);
 	}
 
@@ -67,7 +67,7 @@ public Menu Menu_VIP_SelectItem(int client)
 	if(!iSelectThis)
 		Format(translate, sizeof(translate), "%s%T", translate, "Menu. VIP. Selected Tag", client);
 	Format(translate, sizeof(translate), "%s\n ", translate);
-	menu.AddItem("", translate, (!iSelectThis || g_vip_iPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+	menu.AddItem("", translate, (!iSelectThis || g_vip_bPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
 	bool isAllMode = (strcmp(myFeature, "all", false) == 0);
 	
@@ -84,7 +84,7 @@ public Menu Menu_VIP_SelectItem(int client)
 			{
 				kv_sub.GetSectionName(buff, sizeof(buff));
 		
-				if(g_vip_iPreviewMode[client] && kv_sub.GetFloat("Preview time", g_PreviewTime) <= 0.0)
+				if(g_vip_bPreviewMode[client] && kv_sub.GetFloat("Preview time", g_PreviewTime) <= 0.0)
 					continue;
 				
 				iSelectThis = (strcmp(buff, selected_id) == 0);
@@ -94,7 +94,7 @@ public Menu Menu_VIP_SelectItem(int client)
 				Format(translate, sizeof(translate), "%s", translate);
 				if(iSelectThis)
 					Format(translate, sizeof(translate), "%s%T", translate, "Menu. VIP. Selected Tag", client);
-				menu.AddItem(buff, translate, (iSelectThis && !g_vip_iPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+				menu.AddItem(buff, translate, (iSelectThis && !g_vip_bPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
 				kv_sub.GoBack();
 			}
@@ -111,7 +111,7 @@ public Menu Menu_VIP_SelectItem(int client)
 			if(!kv_sub.JumpToKey(exp[c]))
 				continue;
 
-			if(g_vip_iPreviewMode[client] && kv_sub.GetFloat("Preview time", g_PreviewTime) <= 0.0)
+			if(g_vip_bPreviewMode[client] && kv_sub.GetFloat("Preview time", g_PreviewTime) <= 0.0)
 				continue;
 			
 			iSelectThis = (strcmp(exp[c], selected_id) == 0);
@@ -121,7 +121,7 @@ public Menu Menu_VIP_SelectItem(int client)
 			Format(translate, sizeof(translate), "%s", translate);
 			if(iSelectThis)
 				Format(translate, sizeof(translate), "%s%T", translate, "Menu. VIP. Selected Tag", client);
-			menu.AddItem(exp[c], translate, (iSelectThis && !g_vip_iPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+			menu.AddItem(exp[c], translate, (iSelectThis && !g_vip_bPreviewMode[client]) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
 			kv_sub.GoBack();
 		}
@@ -146,16 +146,16 @@ public int MenuHandler_VIP_SelectItem(Menu menu, MenuAction action, int client, 
 
 		if(strcmp(buff, "preview", false) == 0)
 		{
-			g_vip_iPreviewMode[client] = !g_vip_iPreviewMode[client];
+			g_vip_bPreviewMode[client] = !g_vip_bPreviewMode[client];
 		}
 		else
 		{
-			if(g_vip_iPreviewMode[client])
+			if(g_vip_bPreviewMode[client])
 				Stock_Preview(client, buff);
 			else
 			{
-				g_VipCookie.Set(client, buff);
-				iKv[client].SetString("Vip", buff);
+				g_vip_hCookie.Set(client, buff);
+				g_mapPlayerData[client].SetString("Vip", buff, true);
 			}
 		}
 

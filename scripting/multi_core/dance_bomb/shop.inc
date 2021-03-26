@@ -57,15 +57,15 @@ public void CallBack_Shop_OnItemPreview(int client, CategoryId category_id, cons
 	Stock_Preview(client, item);
 }
 
-public ShopAction CallBack_Shop_OnItemToggled(int client, CategoryId category_id, const char[] category, ItemId item_id, const char[] item, bool isOn, bool elapsed)
+public ShopAction CallBack_Shop_OnItemToggled(int client, CategoryId category_id, const char[] category, ItemId item_id, char[] item, bool isOn, bool elapsed)
 {
 	if(isOn || elapsed)
 	{
-		iKv[client].SetString("Shop", "");
+		MC_SetClientActiveItem(client, g_CategoryId, Core_Shop, "");
 		return Shop_UseOff;
 	}
 		
-	iKv[client].SetString("Shop", item);
+	MC_SetClientActiveItem(client, g_CategoryId, Core_Shop, item);
 	return Shop_UseOn;
 }
 

@@ -23,13 +23,32 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 		}
 		else
 		{
-			float vec_offset[3];
+			float vec_offset[3], mins[3], maxs[3], fMax[3], newPos[3], newOffset[3];
+			int id, trying = g_iMaxTrying;
 
 			GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin, 0);
 			kv_sub.GetVector("Pos offset", vec_offset);
-			AddVectors(origin, vec_offset, origin);
+
+			origin[2] += 30.0;
+
+			AddVectors(origin, vec_offset, maxs);
+			SubtractVectors(origin, vec_offset, mins);
+			SubtractVectors(maxs, mins, fMax);
+
+			do
+			{
+				for(id = 0; id < 3; id++)
+					newOffset[id] = GetRandomFloat(0.0, fMax[id]);
+
+				AddVectors(origin, newOffset, newPos);
+				TR_TraceRayFilter(newPos, view_as<float>({90.0, 0.0, 0.0}), MASK_SOLID, RayType_Infinite, TraceRayFilter_NoPlayers);
+				TR_GetEndPosition(newPos);
+			}
+			while(IsEntityStuck(entity, newPos) && trying--);
 
 			ar_entEmotes = null;
+
+			origin = newPos;
 		}
 
 		kv_sub.GetString("Model", buff, sizeof(buff));
@@ -80,7 +99,7 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 				SetVariantString(buff);
 				AcceptEntityInput(emote ? emote : model, "SetAnimation", -1, -1, 0);
 
-				float change_time = kv.GetFloat("Time change");
+				float change_time = g_kvMain.GetFloat("Time change");
 				if(change_time > 0.0)
 				{   
 					DataPack data_sec = new DataPack();
@@ -159,8 +178,8 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 			data.WriteCell(EntIndexToEntRef(particle));
 			data.WriteString(sound);
 
-			g_iPreviewLastTime[client] = kv_sub.GetFloat("Preview time", g_PreviewTime);
-			g_iPreviewTimerHandle[client] = CreateTimer(0.1, Timer_Preview, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+			g_fPreviewLastTime[client] = kv_sub.GetFloat("Preview time", g_PreviewTime);
+			g_hPreviewTimerHandle[client] = CreateTimer(0.1, Timer_Preview, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 		}
 		else
 		{
@@ -192,9 +211,9 @@ public Action Timer_Preview(Handle timer, DataPack data)
 	data.Reset();
 	int client = GetClientOfUserId(data.ReadCell());
 
-	PrintHintText(client, "%T", "Hint. Draw Preview Time", client, g_iPreviewLastTime[client]);
+	PrintHintText(client, "%T", "Hint. Draw Preview Time", client, g_fPreviewLastTime[client]);
 
-	if((g_iPreviewLastTime[client] -= 0.1) > 0.0 && g_iPreviewTimerHandle[client] == timer && client > 0 && client <= MaxClients && IsPlayerAlive(client) && IsClientInGame(client))
+	if((g_fPreviewLastTime[client] -= 0.1) > 0.0 && g_hPreviewTimerHandle[client] == timer && client > 0 && client <= MaxClients && IsPlayerAlive(client) && IsClientInGame(client))
 		return Plugin_Continue; 
 
 	int model = data.ReadCell();
@@ -269,7 +288,7 @@ public Action Timer_ChangeAnim(Handle timer, DataPack data)
 	char buff[64];
 	ArrayList ar = data.ReadCell();
 
-	ar.GetString(GetRandomInt(0, ar_Priorities.Length - 1), buff, sizeof(buff));
+	ar.GetString(GetRandomInt(0, ar.Length - 1), buff, sizeof(buff));
 	SetVariantString(buff);
 	AcceptEntityInput(ent, "SetAnimation");
 
@@ -291,9 +310,29 @@ stock void Stock_StopSound(int ent = 0, char[] sound_file)
 
 stock void Stock_Preview(int client, const char[] item)
 {
-	kv.Rewind();
-	if(!kv.JumpToKey(item))
+	g_kvMain.Rewind();
+	if(!g_kvMain.JumpToKey(item))
 		return;
 
 	Stock_SpawnDanceBomb(client, _, GetSubKV(), true);
+}
+
+stock bool IsEntityStuck(int entity, float origin[3])
+{
+    float vecMin[3], vecMax[3];
+    
+	GetEntPropVector(entity, Prop_Send, "m_vecMins", vecMin);
+	GetEntPropVector(entity, Prop_Send, "m_vecMaxs", vecMax);
+    
+    TR_TraceHullFilter(origin, origin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayFilter_NotSelfEntity, entity);
+    
+    return TR_DidHit();
+}
+
+public bool TraceRayFilter_NotSelfEntity(int entity, int contentsMask, int self_entity)
+{
+	if(entity != self_entity)
+		return true;
+
+	return false;
 }

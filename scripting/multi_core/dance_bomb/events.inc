@@ -1,39 +1,25 @@
 #include <sourcemod>
 
-public Action Event_PlayerDisconnect(Event event, char[] name, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-
-	if(iKv[client])
-		delete iKv[client];
-}
-
 public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
 {
 	int c4 = FindEntityByClassname(MaxClients+1, "planted_c4");
 	int userid = event.GetInt("userid");
 	int client = GetClientOfUserId(userid);
 
-	if(client <= 0 || c4 <= 0 || !iKv[client])
+	if(client <= 0 || c4 <= 0)
 		return;
 
-	char buff[256];
-	kv.Rewind();
+	char item[64];
+	g_kvMain.Rewind();
 
-	for(int c; c < ar_Priorities.Length; c++)
+	if(MC_GetClientActiveItem(client, g_PluginId, item, sizeof(item)))
 	{
-		ar_Priorities.GetString(c, buff, sizeof(buff));
-		iKv[client].GetString(buff, buff, sizeof(buff));
-
-		if(!buff[0] || !kv.JumpToKey(buff))
-            continue;
-
         DataPack data = new DataPack();
         data.WriteCell(userid);
         data.WriteCell(EntIndexToEntRef(c4));
-        data.WriteCell(GetSubKV(buff));
+        data.WriteCell(GetSubKV(item));
 
-        CreateTimer(kv.GetFloat("delay"), Timer_Delay_CreateBombDance, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE);
+        CreateTimer(g_kvMain.GetFloat("delay"), Timer_Delay_CreateBombDance, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE);
 
         return;
 	}
@@ -42,17 +28,11 @@ public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
 public Action Timer_Delay_CreateBombDance(Handle timer, DataPack data)
 {
 	data.Reset();
-	int client = GetClientOfUserId(data.ReadCell());
+	int client = data.ReadCell();
 	int c4 = EntRefToEntIndex(data.ReadCell());
-	KeyValues kv_sub = data.ReadCell();
 
-	if(!IsValidEdict(c4))
-		return Plugin_Stop;
-
-	float bomb_origin[3];
-	GetEntPropVector(c4, Prop_Send, "m_vecOrigin", bomb_origin, 0);
-
-	Stock_SpawnDanceBomb(client, c4, kv_sub, false);
+	if(IsValidEdict(c4))
+		Stock_SpawnDanceBomb(GetClientOfUserId(client), c4, data.ReadCell(), false);
 
 	return Plugin_Stop;
 }
