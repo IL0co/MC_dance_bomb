@@ -178,7 +178,7 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 			data.WriteCell(EntIndexToEntRef(particle));
 			data.WriteString(sound);
 
-			g_fPreviewLastTime[client] = kv_sub.GetFloat("Preview time", g_PreviewTime);
+			g_fPreviewLastTime[client] = kv_sub.GetFloat("Preview time", g_fPreviewTime);
 			g_hPreviewTimerHandle[client] = CreateTimer(0.1, Timer_Preview, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 		}
 		else

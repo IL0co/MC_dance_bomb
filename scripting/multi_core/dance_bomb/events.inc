@@ -20,8 +20,6 @@ public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
         data.WriteCell(GetSubKV(item));
 
         CreateTimer(g_kvMain.GetFloat("delay"), Timer_Delay_CreateBombDance, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE);
-
-        return;
 	}
 }
 

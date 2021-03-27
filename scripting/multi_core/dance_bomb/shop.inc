@@ -36,7 +36,7 @@ public void Shop_Started()
 					
 					Shop_SetInfo(item_name, description, kv_shop.GetNum("Price"), kv_shop.GetNum("Sell Price"), Item_Togglable, kv_shop.GetNum("Duration"), kv_shop.GetNum("Gold Price"), kv_shop.GetNum("Gold Sell Price"));
 					Shop_SetLuckChance(kv_shop.GetNum("Luck Chance"));
-					Shop_SetCallbacks(_, CallBack_Shop_OnItemToggled, .preview = (kv_sub.GetFloat("Preview time", g_PreviewTime) > 0.0 ? CallBack_Shop_OnItemPreview : INVALID_FUNCTION));
+					Shop_SetCallbacks(_, CallBack_Shop_OnItemToggled, .preview = (kv_sub.GetFloat("Preview time", g_fPreviewTime) > 0.0 ? CallBack_Shop_OnItemPreview : INVALID_FUNCTION));
 					Shop_SetHide(view_as<bool>(kv_shop.GetNum("Hide", 0)));
 					Shop_EndItem();
 				}

@@ -56,7 +56,7 @@ public Menu Menu_VIP_SelectItem(int client)
 	g_vip_hCookie.Get(client, selected_id, sizeof(selected_id));
 	iSelectThis = view_as<bool>(selected_id[0]);
 
-	if(g_PreviewTime > 0.0)
+	if(g_fPreviewTime > 0.0)
 	{
 		Format(translate, sizeof(translate), "%T", "Menu. VIP. Preview Mode", client);
 		Format(translate, sizeof(translate), "%s%T", translate, (g_vip_bPreviewMode[client] ? "Menu. Enable Tag" : "Menu. Disable Tag"), client);
@@ -84,7 +84,7 @@ public Menu Menu_VIP_SelectItem(int client)
 			{
 				kv_sub.GetSectionName(buff, sizeof(buff));
 		
-				if(g_vip_bPreviewMode[client] && kv_sub.GetFloat("Preview time", g_PreviewTime) <= 0.0)
+				if(g_vip_bPreviewMode[client] && kv_sub.GetFloat("Preview time", g_fPreviewTime) <= 0.0)
 					continue;
 				
 				iSelectThis = (strcmp(buff, selected_id) == 0);
@@ -111,7 +111,7 @@ public Menu Menu_VIP_SelectItem(int client)
 			if(!kv_sub.JumpToKey(exp[c]))
 				continue;
 
-			if(g_vip_bPreviewMode[client] && kv_sub.GetFloat("Preview time", g_PreviewTime) <= 0.0)
+			if(g_vip_bPreviewMode[client] && kv_sub.GetFloat("Preview time", g_fPreviewTime) <= 0.0)
 				continue;
 			
 			iSelectThis = (strcmp(exp[c], selected_id) == 0);

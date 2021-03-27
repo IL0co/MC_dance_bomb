@@ -49,6 +49,9 @@ ADDED:
 - добавлена поддержка ядра Multi-Core
 - добавлена проверка на застревание
 - добавлена телепортация к полу
+
+	FIXME:
+	- пересмотреть файл перевода
 */
 
 #define PLUGIN_ID "DanceBomb"
@@ -61,7 +64,7 @@ Handle g_hPreviewTimerHandle[MAXPLAYERS+1];
 KeyValues g_kvMain;
 PluginId g_PluginId;
 
-float g_PreviewTime;
+float g_fPreviewTime;
 int g_iMaxTrying;
 
 int g_entModel, g_entSprite, g_entParticle, g_entEmote;
@@ -83,7 +86,7 @@ public void OnPluginStart()
 
 	g_kvMain = MC_GetModuleConfigKV("dance_bomb.cfg", "Dance Bomb");
 
-	g_PreviewTime = g_kvMain.GetFloat("Preview time", 5.0);
+	g_fPreviewTime = g_kvMain.GetFloat("Preview time", 5.0);
 	g_iMaxTrying = g_kvMain.GetNum("Max Trying", 1);
 
 	g_kvMain.Rewind();
