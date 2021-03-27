@@ -1,9 +1,12 @@
 #include <sourcemod>
 
-stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bool isPreview)
+stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bool isPreview)	
 {
 	if(isPreview && !IsPlayerAlive(client))
+	{
+		delete kv;
 		return;
+	}
 
 	if(client && IsClientInGame(client))
 	{
