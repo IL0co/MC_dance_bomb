@@ -62,7 +62,7 @@ float g_fPreviewLastTime[MAXPLAYERS+1];
 Handle g_hPreviewTimerHandle[MAXPLAYERS+1];
 
 KeyValues g_kvMain;
-PluginId g_PluginId;
+MC_PluginIndex g_PluginIndex;
 
 float g_fPreviewTime;
 int g_iMaxTrying;
@@ -127,7 +127,8 @@ public void MC_OnCoreChangeStatus(char[] core_name, MC_CoreTypeBits core_type, b
 	if(!isLoaded || core_type != Core_MultiCore)
 		return;
 
-	MC_RegisterPlugin(PLUGIN_ID, CallBack_OnCategoryDisplay);
+	MC_RegisterPlugin(PLUGIN_ID);
+	MC_SetPluginCallBacks(CallBack_OnCategoryDisplay);
 
 	char buffer[256];
 	g_kvMain.Rewind();
@@ -147,16 +148,16 @@ public void MC_OnCoreChangeStatus(char[] core_name, MC_CoreTypeBits core_type, b
 		while(g_kvMain.GotoNextKey());
 	}
 
-	g_PluginId = MC_EndPlugin();
+	g_PluginIndex = MC_EndPlugin();
 }
 
-public bool CallBack_OnCategoryDisplay(int client, const char[] plugin_unique, PluginId plugin_id, MC_CoreTypeBits core_type, char[] buffer, int maxlen)
+public bool CallBack_OnCategoryDisplay(int client, const char[] plugin_id, MC_PluginIndex plugin_index, MC_CoreTypeBits core_type, char[] buffer, int maxlen)
 {
 	FormatEx(buffer, maxlen, "%T", "Menu. Plugin Id", client);
 	return true;
 }
 
-public bool CallBack_OnItemDisplay(int client, const char[] plugin_unique, PluginId plugin_id, const char[] item_unique, MC_CoreTypeBits core_type, char[] buffer, int maxlen)
+public bool CallBack_OnItemDisplay(int client, const char[] plugin_id, MC_PluginIndex plugin_index, const char[] item_unique, MC_CoreTypeBits core_type, char[] buffer, int maxlen)
 {
 	g_kvMain.Rewind();
 
@@ -167,7 +168,7 @@ public bool CallBack_OnItemDisplay(int client, const char[] plugin_unique, Plugi
 	return true;
 }
 
-public void CallBack_OnItemPreview(int client, const char[] plugin_unique, PluginId plugin_id, const char[] item_unique, MC_CoreTypeBits core_type)
+public void CallBack_OnItemPreview(int client, const char[] plugin_id, MC_PluginIndex plugin_index, const char[] item_unique, MC_CoreTypeBits core_type)
 {
 	Stock_Preview(client, item_unique);
 }

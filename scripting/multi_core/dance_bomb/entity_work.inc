@@ -4,7 +4,7 @@ stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bo
 {
 	if(isPreview && !IsPlayerAlive(client))
 	{
-		delete kv;
+		delete kv_sub;
 		return;
 	}
 
