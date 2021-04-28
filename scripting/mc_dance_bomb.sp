@@ -117,6 +117,7 @@ public void OnPluginStart()
 	HookEvent("bomb_defused", Event_BombExpodeOrDefuse, EventHookMode_Pre);
 
 	LoadTranslations("mc_dance_bomb.phrases");
+	LoadTranslations("mc_core.phrases");
 
 	if(MC_IsCoreLoaded(Core_MultiCore))
 		MC_OnCoreChangeStatus("", Core_MultiCore, true);

@@ -214,7 +214,7 @@ public Action Timer_Preview(Handle timer, DataPack data)
 	data.Reset();
 	int client = GetClientOfUserId(data.ReadCell());
 
-	PrintHintText(client, "%T", "Hint. Draw Preview Time", client, g_fPreviewLastTime[client]);
+	PrintHintText(client, "%T", "HINT DRAW PREVIEW TIME", client, g_fPreviewLastTime[client]);
 
 	if((g_fPreviewLastTime[client] -= 0.1) > 0.0 && g_hPreviewTimerHandle[client] == timer && client > 0 && client <= MaxClients && IsPlayerAlive(client) && IsClientInGame(client))
 		return Plugin_Continue; 
