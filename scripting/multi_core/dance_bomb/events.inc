@@ -12,7 +12,7 @@ public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
 	char item[64];
 	g_kvMain.Rewind();
 
-	if(MC_GetClientActiveItem(client, g_PluginIndex, item, sizeof(item)))
+	if(MC_GetClientActiveItem(client, PLUGIN_ID, item, sizeof(item)))
 	{
         DataPack data = new DataPack();
         data.WriteCell(userid);

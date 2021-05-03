@@ -62,7 +62,6 @@ float g_fPreviewLastTime[MAXPLAYERS+1];
 Handle g_hPreviewTimerHandle[MAXPLAYERS+1];
 
 KeyValues g_kvMain;
-MC_PluginIndex g_PluginIndex;
 
 float g_fPreviewTime;
 int g_iMaxTrying;
@@ -119,15 +118,12 @@ public void OnPluginStart()
 	LoadTranslations("mc_dance_bomb.phrases");
 	LoadTranslations("mc_core.phrases");
 
-	if(MC_IsCoreLoaded(Core_MultiCore))
-		MC_OnCoreChangeStatus("", Core_MultiCore, true);
+	if(MC_IsCoreLoaded())
+		MC_OnCoreLoaded();
 }
 
-public void MC_OnCoreChangeStatus(char[] core_name, MC_CoreTypeBits core_type, bool isLoaded)
+public void MC_OnCoreLoaded()
 {
-	if(!isLoaded || core_type != Core_MultiCore)
-		return;
-
 	MC_RegisterPlugin(PLUGIN_ID);
 	MC_SetPluginCallBacks(CallBack_OnCategoryDisplay);
 
@@ -149,16 +145,16 @@ public void MC_OnCoreChangeStatus(char[] core_name, MC_CoreTypeBits core_type, b
 		while(g_kvMain.GotoNextKey());
 	}
 
-	g_PluginIndex = MC_EndPlugin();
+	MC_EndPlugin();
 }
 
-public bool CallBack_OnCategoryDisplay(int client, const char[] plugin_id, MC_PluginIndex plugin_index, MC_CoreTypeBits core_type, char[] buffer, int maxlen)
+public bool CallBack_OnCategoryDisplay(int client, const char[] plugin_id, char[] core_type, char[] buffer, int maxlen)
 {
 	FormatEx(buffer, maxlen, "%T", "Menu. Plugin Id", client);
 	return true;
 }
 
-public bool CallBack_OnItemDisplay(int client, const char[] plugin_id, MC_PluginIndex plugin_index, const char[] item_unique, MC_CoreTypeBits core_type, char[] buffer, int maxlen)
+public bool CallBack_OnItemDisplay(int client, const char[] plugin_id, const char[] item_unique, char[] core_type, char[] buffer, int maxlen)
 {
 	g_kvMain.Rewind();
 
@@ -169,7 +165,7 @@ public bool CallBack_OnItemDisplay(int client, const char[] plugin_id, MC_Plugin
 	return true;
 }
 
-public void CallBack_OnItemPreview(int client, const char[] plugin_id, MC_PluginIndex plugin_index, const char[] item_unique, MC_CoreTypeBits core_type)
+public void CallBack_OnItemPreview(int client, const char[] plugin_id, const char[] item_unique, char[] core_type)
 {
 	Stock_Preview(client, item_unique);
 }

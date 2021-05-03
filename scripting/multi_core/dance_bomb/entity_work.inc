@@ -2,196 +2,193 @@
 
 stock void Stock_SpawnDanceBomb(int client, int entity = 0, KeyValues kv_sub, bool isPreview)	
 {
-	if(isPreview && !IsPlayerAlive(client))
+	if((isPreview && !IsPlayerAlive(client)) || !client || !IsClientInGame(client))
 	{
 		delete kv_sub;
 		return;
 	}
 
-	if(client && IsClientInGame(client))
+	char buff[256], sound[256];
+	int model, sprite, particle, emote;
+	float origin[3];
+
+	if(isPreview)
 	{
-		char buff[256], sound[256];
-		int model, sprite, particle, emote;
-		float origin[3];
+		float ang[3], pos[3];
+	
+		GetClientEyePosition(client, pos);
+		GetClientEyeAngles(client, ang);
 
-		if(isPreview)
+		TR_TraceRayFilter(pos, ang, MASK_SOLID, RayType_Infinite, TraceRayFilter_NoPlayers);
+		TR_GetEndPosition(origin);
+	}
+	else
+	{
+		float vec_offset[3], mins[3], maxs[3], fMax[3], newPos[3], newOffset[3];
+		int id, trying = g_iMaxTrying;
+
+		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin, 0);
+		kv_sub.GetVector("Pos offset", vec_offset);
+
+		origin[2] += 30.0;
+
+		AddVectors(origin, vec_offset, maxs);
+		SubtractVectors(origin, vec_offset, mins);
+		SubtractVectors(maxs, mins, fMax);
+
+		do
 		{
-			float ang[3], pos[3];
+			for(id = 0; id < 3; id++)
+				newOffset[id] = GetRandomFloat(0.0, fMax[id]);
+
+			AddVectors(origin, newOffset, newPos);
+			TR_TraceRayFilter(newPos, view_as<float>({90.0, 0.0, 0.0}), MASK_SOLID, RayType_Infinite, TraceRayFilter_NoPlayers);
+			TR_GetEndPosition(newPos);
+		}
+		while(IsEntityStuck(entity, newPos) && trying--);
+
+		ar_entEmotes = null;
+
+		origin = newPos;
+	}
+
+	kv_sub.GetString("Model", buff, sizeof(buff));
+	if(buff[0] && (model = CreateEntityByName("prop_dynamic_override")))
+	{ 
+		if(strcmp(buff, "{player}", false) == 0)
+			GetClientModel(client, buff, sizeof(buff));
+
+		SetEntityModel(model, buff);
+
+		DispatchKeyValue(model, "targetname", TARGET_NAME); 
+		SetEntProp(model, Prop_Send, "m_CollisionGroup", 0);
+		SetEntProp(model, Prop_Send, "m_nSolidType", 0);
+		DispatchKeyValue(model, "solid", (kv_sub.GetNum("Solid Type", 1) == 1 ? "0" : "1"));
+			
+		SetEntityMoveType(model, MOVETYPE_VPHYSICS);
 		
-			GetClientEyePosition(client, pos);
-			GetClientEyeAngles(client, ang);
+		TeleportEntity(model, origin, NULL_VECTOR, NULL_VECTOR);
+		DispatchSpawn(model);
 
-			TR_TraceRayFilter(pos, ang, MASK_SOLID, RayType_Infinite, TraceRayFilter_NoPlayers);
-			TR_GetEndPosition(origin);
-		}
-		else
+		kv_sub.GetString("Dance bones", buff, sizeof(buff));
+		if(buff[0] && (emote = CreateEntityByName("prop_dynamic_override")))
 		{
-			float vec_offset[3], mins[3], maxs[3], fMax[3], newPos[3], newOffset[3];
-			int id, trying = g_iMaxTrying;
+			DispatchKeyValue(emote, "model", buff);
 
-			GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin, 0);
-			kv_sub.GetVector("Pos offset", vec_offset);
+			DispatchKeyValue(emote, "targetname", TARGET_NAME_DANCE);
+			DispatchKeyValue(emote, "solid", "0");
 
-			origin[2] += 30.0;
+			ActivateEntity(emote);
+			DispatchSpawn(emote);
 
-			AddVectors(origin, vec_offset, maxs);
-			SubtractVectors(origin, vec_offset, mins);
-			SubtractVectors(maxs, mins, fMax);
-
-			do
-			{
-				for(id = 0; id < 3; id++)
-					newOffset[id] = GetRandomFloat(0.0, fMax[id]);
-
-				AddVectors(origin, newOffset, newPos);
-				TR_TraceRayFilter(newPos, view_as<float>({90.0, 0.0, 0.0}), MASK_SOLID, RayType_Infinite, TraceRayFilter_NoPlayers);
-				TR_GetEndPosition(newPos);
-			}
-			while(IsEntityStuck(entity, newPos) && trying--);
-
-			ar_entEmotes = null;
-
-			origin = newPos;
-		}
-
-		kv_sub.GetString("Model", buff, sizeof(buff));
-		if(buff[0] && (model = CreateEntityByName("prop_dynamic_override")))
-		{ 
-			if(strcmp(buff, "{player}", false) == 0)
-				GetClientModel(client, buff, sizeof(buff));
-
-			SetEntityModel(model, buff);
-
-			DispatchKeyValue(model, "targetname", TARGET_NAME); 
-			SetEntProp(model, Prop_Send, "m_CollisionGroup", 0);
-			SetEntProp(model, Prop_Send, "m_nSolidType", 0);
-			DispatchKeyValue(model, "solid", (kv_sub.GetNum("Solid Type", 1) == 1 ? "0" : "1"));
-				
-			SetEntityMoveType(model, MOVETYPE_VPHYSICS);
+			TeleportEntity(emote, origin, NULL_VECTOR, NULL_VECTOR);
 			
-			TeleportEntity(model, origin, NULL_VECTOR, NULL_VECTOR);
-			DispatchSpawn(model);
-
-			kv_sub.GetString("Dance bones", buff, sizeof(buff));
-			if(buff[0] && (emote = CreateEntityByName("prop_dynamic_override")))
-			{
-				DispatchKeyValue(emote, "model", buff);
-
-				DispatchKeyValue(emote, "targetname", TARGET_NAME_DANCE);
-				DispatchKeyValue(emote, "solid", "0");
-
-				ActivateEntity(emote);
-				DispatchSpawn(emote);
-
-				TeleportEntity(emote, origin, NULL_VECTOR, NULL_VECTOR);
-				
-				SetEntProp(model, Prop_Send, "m_fEffects", (1 << 0)|(1 << 4)|(1 << 6)|(1 << 9)|128);
-				
-				SetVariantString("!activator");
-				AcceptEntityInput(model, "SetParent", emote, model, 0);
-
-				SetVariantString("primary");
-				AcceptEntityInput(model, "SetParentAttachment", model, model, 0);
-			}
+			SetEntProp(model, Prop_Send, "m_fEffects", (1 << 0)|(1 << 4)|(1 << 6)|(1 << 9)|128);
 			
-			ArrayList ar = view_as<ArrayList>(kv_sub.GetNum("Animations"));
-			if(ar)
-			{
-				ar.GetString(GetRandomInt(0, ar.Length - 1), buff, sizeof(buff));
-
-				SetVariantString(buff);
-				AcceptEntityInput(emote ? emote : model, "SetAnimation", -1, -1, 0);
-
-				float change_time = g_kvMain.GetFloat("Time change");
-				if(change_time > 0.0)
-				{   
-					DataPack data_sec = new DataPack();
-					data_sec.WriteCell(emote ? emote : model);
-					data_sec.WriteCell(ar);
-
-					CreateTimer(change_time, Timer_ChangeAnim, data_sec, TIMER_REPEAT|TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE);
-				}
-				else if(change_time == -1.0 && !isPreview)
-				{
-					ar_entEmotes = ar;
-					HookSingleEntityOutput(emote ? emote : model, "OnAnimationDone", EndOutput_OnAnimationDone, true);
-				}
-			}
-		}
-
-		kv_sub.GetString("Sprite", buff, sizeof(buff));
-		if(buff[0] && (sprite = CreateEntityByName("env_sprite")))
-		{ 
-			DispatchKeyValue(sprite, "spawnflags", "1");
-			DispatchKeyValueFloat(sprite, "scale", 0.5);
-			DispatchKeyValue(sprite, "rendermode", "1");
-			DispatchKeyValue(sprite, "rendercolor", "255 255 255");
-			DispatchKeyValue(sprite, "model", buff); 
-			DispatchKeyValue(sprite, "targetname", TARGET_NAME); 
-			DispatchSpawn(sprite);
-
-			TeleportEntity(sprite, origin, NULL_VECTOR, NULL_VECTOR);
-		}
-
-		kv_sub.GetString("Sound", sound, sizeof(sound));
-		if(sound[0])
-		{
-			if(isPreview)
-				EmitSoundToClient(client, sound, client, SNDCHAN_STATIC, kv_sub.GetNum("Level", 255), _, kv_sub.GetFloat("Volume", 1.0), kv_sub.GetNum("Pitch", 100), _, origin, origin);
-			else
-				EmitSoundToAll(sound, 0, SNDCHAN_STATIC, kv_sub.GetNum("Level", 255), _, kv_sub.GetFloat("Volume", 1.0), kv_sub.GetNum("Pitch", 100), _, origin);
-		}
-
-		kv_sub.GetString("Particle name", buff, sizeof(buff));
-		if(buff[0] && (particle = CreateEntityByName("info_particle_system")))
-		{
-			DispatchKeyValue(particle, "targetname", TARGET_NAME);
-			DispatchKeyValue(particle, "effect_name", buff);
-			DispatchSpawn(particle);
-			DispatchKeyValue(particle, "start_active", "1");
-			ActivateEntity(particle);
-			AcceptEntityInput(particle, "Start");
-			TeleportEntity(particle, origin, NULL_VECTOR, NULL_VECTOR);
 			SetVariantString("!activator");
-		}
+			AcceptEntityInput(model, "SetParent", emote, model, 0);
 
+			SetVariantString("primary");
+			AcceptEntityInput(model, "SetParentAttachment", model, model, 0);
+		}
+		
+		ArrayList ar = view_as<ArrayList>(kv_sub.GetNum("Animations"));
+		if(ar)
+		{
+			ar.GetString(GetRandomInt(0, ar.Length - 1), buff, sizeof(buff));
+
+			SetVariantString(buff);
+			AcceptEntityInput(emote ? emote : model, "SetAnimation", -1, -1, 0);
+
+			float change_time = g_kvMain.GetFloat("Time change");
+			if(change_time > 0.0)
+			{   
+				DataPack data_sec = new DataPack();
+				data_sec.WriteCell(emote ? emote : model);
+				data_sec.WriteCell(ar);
+
+				CreateTimer(change_time, Timer_ChangeAnim, data_sec, TIMER_REPEAT|TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE);
+			}
+			else if(change_time == -1.0 && !isPreview)
+			{
+				ar_entEmotes = ar;
+				HookSingleEntityOutput(emote ? emote : model, "OnAnimationDone", EndOutput_OnAnimationDone, true);
+			}
+		}
+	}
+
+	kv_sub.GetString("Sprite", buff, sizeof(buff));
+	if(buff[0] && (sprite = CreateEntityByName("env_sprite")))
+	{ 
+		DispatchKeyValue(sprite, "spawnflags", "1");
+		DispatchKeyValueFloat(sprite, "scale", 0.5);
+		DispatchKeyValue(sprite, "rendermode", "1");
+		DispatchKeyValue(sprite, "rendercolor", "255 255 255");
+		DispatchKeyValue(sprite, "model", buff); 
+		DispatchKeyValue(sprite, "targetname", TARGET_NAME); 
+		DispatchSpawn(sprite);
+
+		TeleportEntity(sprite, origin, NULL_VECTOR, NULL_VECTOR);
+	}
+
+	kv_sub.GetString("Sound", sound, sizeof(sound));
+	if(sound[0])
+	{
 		if(isPreview)
-		{
-			if(model)
-			{
-				SetEntPropEnt(model, Prop_Send, "m_hOwnerEntity", client);
-				SDKHook(model, SDKHook_SetTransmit, Hook_SetTransmit);
-			}
-			if(sprite)
-			{
-				SetEntPropEnt(sprite, Prop_Send, "m_hOwnerEntity", client);
-				SDKHook(sprite, SDKHook_SetTransmit, Hook_SetTransmit);
-			}
-			if(particle)
-			{
-				SetEntPropEnt(particle, Prop_Send, "m_hOwnerEntity", client);
-				SDKHook(particle, SDKHook_SetTransmit, Hook_SetTransmit_Particle);
-			}
-			
-			DataPack data = new DataPack();
-			data.WriteCell(GetClientUserId(client));
-			data.WriteCell(EntIndexToEntRef(model));
-			data.WriteCell(EntIndexToEntRef(sprite));
-			data.WriteCell(EntIndexToEntRef(emote));
-			data.WriteCell(EntIndexToEntRef(particle));
-			data.WriteString(sound);
-
-			g_fPreviewLastTime[client] = kv_sub.GetFloat("Preview time", g_fPreviewTime);
-			g_hPreviewTimerHandle[client] = CreateTimer(0.1, Timer_Preview, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
-		}
+			EmitSoundToClient(client, sound, client, SNDCHAN_STATIC, kv_sub.GetNum("Level", 255), _, kv_sub.GetFloat("Volume", 1.0), kv_sub.GetNum("Pitch", 100), _, origin, origin);
 		else
+			EmitSoundToAll(sound, 0, SNDCHAN_STATIC, kv_sub.GetNum("Level", 255), _, kv_sub.GetFloat("Volume", 1.0), kv_sub.GetNum("Pitch", 100), _, origin);
+	}
+
+	kv_sub.GetString("Particle name", buff, sizeof(buff));
+	if(buff[0] && (particle = CreateEntityByName("info_particle_system")))
+	{
+		DispatchKeyValue(particle, "targetname", TARGET_NAME);
+		DispatchKeyValue(particle, "effect_name", buff);
+		DispatchSpawn(particle);
+		DispatchKeyValue(particle, "start_active", "1");
+		ActivateEntity(particle);
+		AcceptEntityInput(particle, "Start");
+		TeleportEntity(particle, origin, NULL_VECTOR, NULL_VECTOR);
+		SetVariantString("!activator");
+	}
+
+	if(isPreview)
+	{
+		if(model)
 		{
-			Format(g_entSound, sizeof(g_entSound), sound);
-			g_entModel = EntIndexToEntRef(model);
-			g_entSprite = EntIndexToEntRef(sprite);
-			g_entEmote = EntIndexToEntRef(emote);
-			g_entParticle = EntIndexToEntRef(particle);
+			SetEntPropEnt(model, Prop_Send, "m_hOwnerEntity", client);
+			SDKHook(model, SDKHook_SetTransmit, Hook_SetTransmit);
 		}
+		if(sprite)
+		{
+			SetEntPropEnt(sprite, Prop_Send, "m_hOwnerEntity", client);
+			SDKHook(sprite, SDKHook_SetTransmit, Hook_SetTransmit);
+		}
+		if(particle)
+		{
+			SetEntPropEnt(particle, Prop_Send, "m_hOwnerEntity", client);
+			SDKHook(particle, SDKHook_SetTransmit, Hook_SetTransmit_Particle);
+		}
+		
+		DataPack data = new DataPack();
+		data.WriteCell(GetClientUserId(client));
+		data.WriteCell(EntIndexToEntRef(model));
+		data.WriteCell(EntIndexToEntRef(sprite));
+		data.WriteCell(EntIndexToEntRef(emote));
+		data.WriteCell(EntIndexToEntRef(particle));
+		data.WriteString(sound);
+
+		g_fPreviewLastTime[client] = kv_sub.GetFloat("Preview time", g_fPreviewTime);
+		g_hPreviewTimerHandle[client] = CreateTimer(0.1, Timer_Preview, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+	}
+	else
+	{
+		Format(g_entSound, sizeof(g_entSound), sound);
+		g_entModel = EntIndexToEntRef(model);
+		g_entSprite = EntIndexToEntRef(sprite);
+		g_entEmote = EntIndexToEntRef(emote);
+		g_entParticle = EntIndexToEntRef(particle);
 	}
 
 	delete kv_sub;
