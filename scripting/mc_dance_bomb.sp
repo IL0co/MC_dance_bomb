@@ -60,8 +60,8 @@ enum
 	VIP = 4
 };
 
-char g_LoadCore[][][] = {{"shop", view_as<int>(SHOP)},
-					     {"vip_core", view_as<int>(VIP)}};
+char g_sLoadCoreNames[][] = {"shop", "vip_core"};
+int g_iLoadCore[] = {SHOP, VIP};
 int g_IsCoreLoadBits;
 
 float g_iPreviewLastTime[MAXPLAYERS+1];
@@ -101,15 +101,15 @@ public void OnLibraryRemoved(const char[] name)
 
 stock void Stock_GetCoresLoad(const char[] name, bool isLoad)
 {
-	for(int c; c < sizeof(g_LoadCore); c++)		if(strcmp(name, g_LoadCore[c][0], false) == 0)
+	for(int c; c < sizeof(g_sLoadCoreNames); c++)		if(strcmp(name, g_sLoadCoreNames[c], false) == 0)
 	{
 		if(isLoad)
 		{
-			if(!(g_IsCoreLoadBits & g_LoadCore[c][1][0]))
-				g_IsCoreLoadBits |= g_LoadCore[c][1][0];
+			if(!(g_IsCoreLoadBits & g_iLoadCore[c]))
+				g_IsCoreLoadBits |= g_iLoadCore[c];
 		}
 		else
-			g_IsCoreLoadBits &= ~g_LoadCore[c][1][0];
+			g_IsCoreLoadBits &= ~g_iLoadCore[c];
 
 		break;
 	}
@@ -125,8 +125,8 @@ public void OnPluginEnd()
 
 public void OnPluginStart()
 {
-	for(int c; c < sizeof(g_LoadCore); c++)		if(!(g_IsCoreLoadBits & g_LoadCore[c][1][0]) && LibraryExists(g_LoadCore[c][0]))
-		g_IsCoreLoadBits |= g_LoadCore[c][1][0];
+	for(int c; c < sizeof(g_sLoadCoreNames); c++)		if(!(g_IsCoreLoadBits & g_iLoadCore[c]) && LibraryExists(g_sLoadCoreNames[c]))
+		g_IsCoreLoadBits |= g_iLoadCore[c];
 
 	char buffer[256], exp[16][64];
 
@@ -256,6 +256,8 @@ public Action Event_PlayerDisconnect(Event event, char[] name, bool dontBroadcas
 
 	if(iKv[client])
 		delete iKv[client];
+
+	return Plugin_Continue;
 }
 
 public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
@@ -265,7 +267,7 @@ public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
 	int client = GetClientOfUserId(userid);
 
 	if(client <= 0 || c4 <= 0 || !iKv[client])
-		return;
+		return Plugin_Continue;
 
 	KeyValues kv_sub;
 	char buff[256];
@@ -285,7 +287,7 @@ public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
 	}
 
 	if(!kv_sub)
-		return;
+		return Plugin_Continue;
 	
 	DataPack data = new DataPack();
 	data.WriteCell(userid);
@@ -293,7 +295,7 @@ public Action Event_BombPlanted(Event event, char[] name, bool dontBroadcast)
 	data.WriteCell(kv_sub);
 
 	CreateTimer(kv.GetFloat("delay"), Timer_Delay_CreateBombDance, data, TIMER_DATA_HNDL_CLOSE|TIMER_FLAG_NO_MAPCHANGE);
-	return;
+	return Plugin_Continue;
 }
 
 public Action Timer_Delay_CreateBombDance(Handle timer, DataPack data)
@@ -604,6 +606,8 @@ public Action Event_BombExpodeOrDefuse(Event event, char[] name, bool dontBroadc
 	g_entParticle = 0;
 	g_entEmote = 0;
 	g_entSound[0] = '\0';
+
+	return Plugin_Continue;
 }
 
 stock void Stock_KillEntity(int ent_ref)
@@ -914,4 +918,6 @@ public int MenuHendler_VIP_SelectItem(Menu menu, MenuAction action, int client, 
 		VIP_SendClientVIPMenu(client);
 	else if(action == MenuAction_End) 
 		delete menu;
+
+	return 0;
 }
