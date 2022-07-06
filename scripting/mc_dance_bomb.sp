@@ -17,7 +17,7 @@ public Plugin myinfo =
 	name		= "[Multi-Core] Dance Bomb",
 	author	  	= "iLoco",
 	description = "",
-	version	 	= "1.0.3",
+	version	 	= "1.0.4",
 	url			= "iLoco#7631"
 };
 
